@@ -1,0 +1,203 @@
+<html>
+<head>
+  <title>Evernote Export</title>
+  <basefont face="微软雅黑" size="2" />
+  <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+  <meta name="exporter-version" content="YXBJ Windows/607017 (zh-CN, DDL); Windows/10.0.0 (Win64); EDAMVersion=V2;"/>
+  <meta name="content-class" content="yinxiang.markdown"/>
+  <style>
+    body, td {
+      font-family: 微软雅黑;
+      font-size: 10pt;
+    }
+  </style>
+</head>
+<body>
+<a name="3615"/>
+
+<div><span><div style="font-size: 14px; margin: 0; padding: 0; width: 100%;"><blockquote style="line-height: 160%; box-sizing: content-box; margin: 15px 0; border-left: 4px solid #ddd; padding: 0 15px; color: #777;">
+<p style="line-height: 160%; box-sizing: content-box; margin: 10px 0; color: #333; margin-top: 0; margin-bottom: 0;">先讲一下浅克隆和深克隆的区别<br/>
+浅克隆和深克隆的区分在于，引用类型的值是是复制了某个对象的指针，还是复制了对象本身</p>
+</blockquote>
+<p style="line-height: 160%; box-sizing: content-box; margin: 10px 0; color: #333;">浅克隆方法：</p>
+<ul style="line-height: 160%; box-sizing: content-box; display: block; list-style-type: disc; padding-left: 30px; margin: 6px 0 10px; color: #333;">
+<li style="line-height: 160%; box-sizing: content-box; position: relative;">Object.assign() [第一层深拷贝，第二层以上都是浅拷贝]</li>
+<li style="line-height: 160%; box-sizing: content-box; position: relative;">...（扩展运算符）[Symbol.iterator]</li>
+</ul>
+<p style="line-height: 160%; box-sizing: content-box; margin: 10px 0; color: #333;">深克隆</p>
+<ul style="line-height: 160%; box-sizing: content-box; display: block; list-style-type: disc; padding-left: 30px; margin: 6px 0 10px; color: #333;">
+<li style="line-height: 160%; box-sizing: content-box; position: relative;">JSON.parse 和 JSON.stringify</li>
+<li style="line-height: 160%; box-sizing: content-box; position: relative;">lodash</li>
+<li style="line-height: 160%; box-sizing: content-box; position: relative;">手写一个</li>
+</ul>
+<p style="line-height: 160%; box-sizing: content-box; margin: 10px 0; color: #333;"><strong style="line-height: 160%; box-sizing: content-box; font-weight: 700;">先自己手写一个克隆</strong></p>
+<pre style="line-height: 160%; box-sizing: content-box; border: 0; border-radius: 0; margin: 2px 0 8px; background-color: #f5f7f8;"><code style="display: block; overflow-x: auto; background: #1e1e1e; line-height: 160%; box-sizing: content-box; border: 0; border-radius: 0; letter-spacing: -.3px; padding: 18px; color: #f4f4f4; white-space: pre-wrap;">function cloneDeep(obj) {
+    if (typeof obj !== 'object' || obj === null) return obj;
+    const result = {};
+    Object.entries(obj).forEach(([key, value]) =&gt; {
+        result[key] = cloneDeep(value)
+    })
+    return result;
+}
+</code></pre>
+<p style="line-height: 160%; box-sizing: content-box; margin: 10px 0; color: #333;">。。。我怎么一下就写出来了<br/>
+仔细一看，我漏了两个地方<br/>
+1.数组<br/>
+2.无限循环</p>
+<p style="line-height: 160%; box-sizing: content-box; margin: 10px 0; color: #333;">数组，判断一下，当前是数组还是对象<br/>
+无限循环，增加一个hash记录之前的对象的地址，如果引用相同地址，就返回新的对象</p>
+<pre style="line-height: 160%; box-sizing: content-box; border: 0; border-radius: 0; margin: 2px 0 8px; background-color: #f5f7f8;"><code style="display: block; overflow-x: auto; background: #1e1e1e; line-height: 160%; box-sizing: content-box; border: 0; border-radius: 0; letter-spacing: -.3px; padding: 18px; color: #f4f4f4; white-space: pre-wrap;">function cloneDeep(obj, Hash = new WeakMap()) {
+    if (typeof obj !== 'object' || obj === null) return obj;
+    const result = Array.isArray(obj) ? [] : {};
+    if (Hash.has(obj)) return Hash.get(obj)
+    Object.entries(obj).forEach(([key, value]) =&gt; {
+        result[key] = cloneDeep(value,Hash)
+    })
+    Hash.set(obj, result);
+    return result;
+}
+</code></pre>
+<p style="line-height: 160%; box-sizing: content-box; margin: 10px 0; color: #333;">测试一下</p>
+<pre style="line-height: 160%; box-sizing: content-box; border: 0; border-radius: 0; margin: 2px 0 8px; background-color: #f5f7f8;"><code style="display: block; overflow-x: auto; background: #1e1e1e; line-height: 160%; box-sizing: content-box; border: 0; border-radius: 0; letter-spacing: -.3px; padding: 18px; color: #f4f4f4; white-space: pre-wrap;">var a = {
+    x1: '1',
+    x2: 1,
+    x3: false,
+    x4: undefined,
+    x5: null,
+    x6: NaN,
+    x7: Symbol(),
+    x8: function() {},
+    x9: [],
+    x10: {},
+    x11: [[]],
+    x12: {x1:{}},
+    x13: {x1:a}
+}
+var b = cloneDeep(a);
+// 先测试第一层
+Object.entries(a).forEach(([key,value]) =&gt; {
+    console.log(key, b[key] === value)
+})
+
+x1 true
+x2 true
+x3 true
+x4 true
+x5 true
+x6 false
+x7 true
+x8 true
+x9 false
+x10 false
+x11 false
+x12 false
+x13 false
+
+// 测试第二层
+a.x11[0] === b.x11[0]  // false
+a.x12['x1'] === b.x12['x1'] // false
+a === b.x13['x1'] // false
+</code></pre>
+<p style="line-height: 160%; box-sizing: content-box; margin: 10px 0; color: #333;">暂时测试通过。</p>
+<p style="line-height: 160%; box-sizing: content-box; margin: 10px 0; color: #333;">看看别人怎么写的递归深克隆</p>
+<pre style="line-height: 160%; box-sizing: content-box; border: 0; border-radius: 0; margin: 2px 0 8px; background-color: #f5f7f8;"><code style="display: block; overflow-x: auto; background: #1e1e1e; line-height: 160%; box-sizing: content-box; border: 0; border-radius: 0; letter-spacing: -.3px; padding: 18px; color: #f4f4f4; white-space: pre-wrap;">function deepClone(origin, target, hash = new WeakMap()) {
+    //origin:要被拷贝的对象
+    // 需要完善，克隆的结果和之前保持相同的所属类
+    var target = target || {};
+
+    // 处理特殊情况
+    if (origin == null) return origin;  //null 和 undefined 都不用处理
+    if (origin instanceof Date) return new Date(origin);
+    if (origin instanceof RegExp) return new RegExp(origin);
+    if (typeof origin !== 'object') return origin;  // 普通常量直接返回
+
+    //  防止对象中的循环引用爆栈，把拷贝过的对象直接返还即可
+    if (hash.has(origin)) return hash.get(origin);
+    hash.set(origin, target)  // 制作一个映射表
+
+    // 拿出所有属性，包括可枚举的和不可枚举的，但不能拿到symbol类型
+    var props = Object.getOwnPropertyNames(origin);
+    props.forEach((prop, index) =&gt; {
+        if (origin.hasOwnProperty(prop)) {
+            if (typeof (origin[prop]) === &quot;object&quot;) {
+                if (Object.prototype.toString.call(origin[prop]) == &quot;[object Array]&quot;) {
+                    //数组                            
+                    target[prop] = [];
+                    deepClone(origin[prop], target[prop], hash);
+                } else if (Object.prototype.toString.call(origin[prop]) == &quot;[object Object]&quot;) {
+                    //普通对象 
+                    target[prop] = {};
+
+                    deepClone(origin[prop], target[prop], hash);
+                } else if (origin[prop] instanceof Date) {
+                    // 处理日期对象
+                    target[prop] = new Date(origin[prop])
+                } else if (origin[prop] instanceof RegExp) {
+                    // 处理正则对象
+                    target[prop] = new RegExp(origin[prop])
+                } else {
+                    //null                                                
+                    target[prop] = null;
+                }
+            } else if (typeof (origin[prop]) === &quot;function&quot;) {
+                var _copyFn = function (fn) {
+                    var result = new Function(&quot;return &quot; + fn)();
+                    for (var i in fn) {
+                        deepClone[fn[i], result[i], hash]
+                    }
+                    return result
+                }
+                target[prop] = _copyFn(origin[prop]);
+            } else {
+                //除了object、function，剩下都是直接赋值的原始值
+                target[prop] = origin[prop];
+            }
+        }
+    });
+
+    // 单独处理symbol            
+    var symKeys = Object.getOwnPropertySymbols(origin);
+    if (symKeys.length) {
+        symKeys.forEach(symKey =&gt; {
+            target[symKey] = origin[symKey];
+        });
+    }
+    return target;
+}
+
+</code></pre>
+<p style="line-height: 160%; box-sizing: content-box; margin: 10px 0; color: #333;">比较之下代码问题</p>
+<ol style="line-height: 160%; box-sizing: content-box; display: block; padding-left: 30px; margin: 6px 0 10px; color: #333; list-style-type: decimal;">
+<li style="line-height: 160%; box-sizing: content-box;">Date，Function等也要克隆</li>
+<li style="line-height: 160%; box-sizing: content-box;">Symbol类型的没有克隆</li>
+</ol>
+<p style="line-height: 160%; box-sizing: content-box; margin: 10px 0; color: #333;">优化一下</p>
+<pre style="line-height: 160%; box-sizing: content-box; border: 0; border-radius: 0; margin: 2px 0 8px; background-color: #f5f7f8;"><code style="display: block; overflow-x: auto; background: #1e1e1e; line-height: 160%; box-sizing: content-box; border: 0; border-radius: 0; letter-spacing: -.3px; padding: 18px; color: #f4f4f4; white-space: pre-wrap;">function cloneDeep(origin, hash = new WeakMap()) {
+    if (origin == null) return origin;
+    if (typeof origin === 'symbol') return origin;
+    if (origin instanceof Date) return new Date(origin);
+    if (origin instanceof RegExp) return new RegExp(origin); 
+    if (typeof origin === 'function') {
+        if (/^function/.test(origin.toString()) || /^\(\)/.test(origin.toString())) {
+            return new Function('return ' + origin.toString())()
+        }
+
+        return new Function('return function ' + origin.toString())()
+    }
+    if (origin instanceof RegExp) return new RegExp(origin);
+    if (typeof origin !== 'object') return origin;
+
+    const result = Array.isArray(origin) ? [] : {};
+    if (hash.has(origin)) return hash.get(origin);
+    
+    Object.getOwnPropertyNames(origin)
+    .concat(Object.getOwnPropertySymbols(origin))
+    .forEach((key) =&gt; {
+        result[key] = cloneDeep(origin[key], hash);
+    })
+    hash.set(origin, result);
+    return result;
+}
+</code></pre>
+</div><center style="display:none !important;visibility:collapse !important;height:0 !important;white-space:nowrap;width:100%;overflow:hidden">%3E%E5%85%88%E8%AE%B2%E4%B8%80%E4%B8%8B%E6%B5%85%E5%85%8B%E9%9A%86%E5%92%8C%E6%B7%B1%E5%85%8B%E9%9A%86%E7%9A%84%E5%8C%BA%E5%88%AB%0A%3E%E6%B5%85%E5%85%8B%E9%9A%86%E5%92%8C%E6%B7%B1%E5%85%8B%E9%9A%86%E7%9A%84%E5%8C%BA%E5%88%86%E5%9C%A8%E4%BA%8E%EF%BC%8C%E5%BC%95%E7%94%A8%E7%B1%BB%E5%9E%8B%E7%9A%84%E5%80%BC%E6%98%AF%E6%98%AF%E5%A4%8D%E5%88%B6%E4%BA%86%E6%9F%90%E4%B8%AA%E5%AF%B9%E8%B1%A1%E7%9A%84%E6%8C%87%E9%92%88%EF%BC%8C%E8%BF%98%E6%98%AF%E5%A4%8D%E5%88%B6%E4%BA%86%E5%AF%B9%E8%B1%A1%E6%9C%AC%E8%BA%AB%0A%0A%E6%B5%85%E5%85%8B%E9%9A%86%E6%96%B9%E6%B3%95%EF%BC%9A%0A%0A*%20Object.assign()%20%5B%E7%AC%AC%E4%B8%80%E5%B1%82%E6%B7%B1%E6%8B%B7%E8%B4%9D%EF%BC%8C%E7%AC%AC%E4%BA%8C%E5%B1%82%E4%BB%A5%E4%B8%8A%E9%83%BD%E6%98%AF%E6%B5%85%E6%8B%B7%E8%B4%9D%5D%0A*%20...%EF%BC%88%E6%89%A9%E5%B1%95%E8%BF%90%E7%AE%97%E7%AC%A6%EF%BC%89%5BSymbol.iterator%5D%0A%0A%E6%B7%B1%E5%85%8B%E9%9A%86%0A%0A*%20JSON.parse%20%E5%92%8C%20JSON.stringify%0A*%20lodash%0A*%20%E6%89%8B%E5%86%99%E4%B8%80%E4%B8%AA%0A%0A**%E5%85%88%E8%87%AA%E5%B7%B1%E6%89%8B%E5%86%99%E4%B8%80%E4%B8%AA%E5%85%8B%E9%9A%86**%0A%60%60%60%0Afunction%20cloneDeep(obj)%20%7B%0A%20%20%20%20if%20(typeof%20obj%20!%3D%3D%20'object'%20%7C%7C%20obj%20%3D%3D%3D%20null)%20return%20obj%3B%0A%20%20%20%20const%20result%20%3D%20%7B%7D%3B%0A%20%20%20%20Object.entries(obj).forEach((%5Bkey%2C%20value%5D)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20result%5Bkey%5D%20%3D%20cloneDeep(value)%0A%20%20%20%20%7D)%0A%20%20%20%20return%20result%3B%0A%7D%0A%60%60%60%0A%E3%80%82%E3%80%82%E3%80%82%E6%88%91%E6%80%8E%E4%B9%88%E4%B8%80%E4%B8%8B%E5%B0%B1%E5%86%99%E5%87%BA%E6%9D%A5%E4%BA%86%0A%E4%BB%94%E7%BB%86%E4%B8%80%E7%9C%8B%EF%BC%8C%E6%88%91%E6%BC%8F%E4%BA%86%E4%B8%A4%E4%B8%AA%E5%9C%B0%E6%96%B9%0A1.%E6%95%B0%E7%BB%84%0A2.%E6%97%A0%E9%99%90%E5%BE%AA%E7%8E%AF%0A%0A%E6%95%B0%E7%BB%84%EF%BC%8C%E5%88%A4%E6%96%AD%E4%B8%80%E4%B8%8B%EF%BC%8C%E5%BD%93%E5%89%8D%E6%98%AF%E6%95%B0%E7%BB%84%E8%BF%98%E6%98%AF%E5%AF%B9%E8%B1%A1%0A%E6%97%A0%E9%99%90%E5%BE%AA%E7%8E%AF%EF%BC%8C%E5%A2%9E%E5%8A%A0%E4%B8%80%E4%B8%AAhash%E8%AE%B0%E5%BD%95%E4%B9%8B%E5%89%8D%E7%9A%84%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%9C%B0%E5%9D%80%EF%BC%8C%E5%A6%82%E6%9E%9C%E5%BC%95%E7%94%A8%E7%9B%B8%E5%90%8C%E5%9C%B0%E5%9D%80%EF%BC%8C%E5%B0%B1%E8%BF%94%E5%9B%9E%E6%96%B0%E7%9A%84%E5%AF%B9%E8%B1%A1%0A%0A%60%60%60%0Afunction%20cloneDeep(obj%2C%20Hash%20%3D%20new%20WeakMap())%20%7B%0A%20%20%20%20if%20(typeof%20obj%20!%3D%3D%20'object'%20%7C%7C%20obj%20%3D%3D%3D%20null)%20return%20obj%3B%0A%20%20%20%20const%20result%20%3D%20Array.isArray(obj)%20%3F%20%5B%5D%20%3A%20%7B%7D%3B%0A%20%20%20%20if%20(Hash.has(obj))%20return%20Hash.get(obj)%0A%20%20%20%20Object.entries(obj).forEach((%5Bkey%2C%20value%5D)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20result%5Bkey%5D%20%3D%20cloneDeep(value%2CHash)%0A%20%20%20%20%7D)%0A%20%20%20%20Hash.set(obj%2C%20result)%3B%0A%20%20%20%20return%20result%3B%0A%7D%0A%60%60%60%0A%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B%0A%60%60%60%0Avar%20a%20%3D%20%7B%0A%20%20%20%20x1%3A%20'1'%2C%0A%20%20%20%20x2%3A%201%2C%0A%20%20%20%20x3%3A%20false%2C%0A%20%20%20%20x4%3A%20undefined%2C%0A%20%20%20%20x5%3A%20null%2C%0A%20%20%20%20x6%3A%20NaN%2C%0A%20%20%20%20x7%3A%20Symbol()%2C%0A%20%20%20%20x8%3A%20function()%20%7B%7D%2C%0A%20%20%20%20x9%3A%20%5B%5D%2C%0A%20%20%20%20x10%3A%20%7B%7D%2C%0A%20%20%20%20x11%3A%20%5B%5B%5D%5D%2C%0A%20%20%20%20x12%3A%20%7Bx1%3A%7B%7D%7D%2C%0A%20%20%20%20x13%3A%20%7Bx1%3Aa%7D%0A%7D%0Avar%20b%20%3D%20cloneDeep(a)%3B%0A%2F%2F%20%E5%85%88%E6%B5%8B%E8%AF%95%E7%AC%AC%E4%B8%80%E5%B1%82%0AObject.entries(a).forEach((%5Bkey%2Cvalue%5D)%20%3D%3E%20%7B%0A%20%20%20%20console.log(key%2C%20b%5Bkey%5D%20%3D%3D%3D%20value)%0A%7D)%0A%0Ax1%20true%0Ax2%20true%0Ax3%20true%0Ax4%20true%0Ax5%20true%0Ax6%20false%0Ax7%20true%0Ax8%20true%0Ax9%20false%0Ax10%20false%0Ax11%20false%0Ax12%20false%0Ax13%20false%0A%0A%2F%2F%20%E6%B5%8B%E8%AF%95%E7%AC%AC%E4%BA%8C%E5%B1%82%0Aa.x11%5B0%5D%20%3D%3D%3D%20b.x11%5B0%5D%20%20%2F%2F%20false%0Aa.x12%5B'x1'%5D%20%3D%3D%3D%20b.x12%5B'x1'%5D%20%2F%2F%20false%0Aa%20%3D%3D%3D%20b.x13%5B'x1'%5D%20%2F%2F%20false%0A%60%60%60%0A%E6%9A%82%E6%97%B6%E6%B5%8B%E8%AF%95%E9%80%9A%E8%BF%87%E3%80%82%0A%0A%E7%9C%8B%E7%9C%8B%E5%88%AB%E4%BA%BA%E6%80%8E%E4%B9%88%E5%86%99%E7%9A%84%E9%80%92%E5%BD%92%E6%B7%B1%E5%85%8B%E9%9A%86%0A%60%60%60%0Afunction%20deepClone(origin%2C%20target%2C%20hash%20%3D%20new%20WeakMap())%20%7B%0A%20%20%20%20%2F%2Forigin%3A%E8%A6%81%E8%A2%AB%E6%8B%B7%E8%B4%9D%E7%9A%84%E5%AF%B9%E8%B1%A1%0A%20%20%20%20%2F%2F%20%E9%9C%80%E8%A6%81%E5%AE%8C%E5%96%84%EF%BC%8C%E5%85%8B%E9%9A%86%E7%9A%84%E7%BB%93%E6%9E%9C%E5%92%8C%E4%B9%8B%E5%89%8D%E4%BF%9D%E6%8C%81%E7%9B%B8%E5%90%8C%E7%9A%84%E6%89%80%E5%B1%9E%E7%B1%BB%0A%20%20%20%20var%20target%20%3D%20target%20%7C%7C%20%7B%7D%3B%0A%0A%20%20%20%20%2F%2F%20%E5%A4%84%E7%90%86%E7%89%B9%E6%AE%8A%E6%83%85%E5%86%B5%0A%20%20%20%20if%20(origin%20%3D%3D%20null)%20return%20origin%3B%20%20%2F%2Fnull%20%E5%92%8C%20undefined%20%E9%83%BD%E4%B8%8D%E7%94%A8%E5%A4%84%E7%90%86%0A%20%20%20%20if%20(origin%20instanceof%20Date)%20return%20new%20Date(origin)%3B%0A%20%20%20%20if%20(origin%20instanceof%20RegExp)%20return%20new%20RegExp(origin)%3B%0A%20%20%20%20if%20(typeof%20origin%20!%3D%3D%20'object')%20return%20origin%3B%20%20%2F%2F%20%E6%99%AE%E9%80%9A%E5%B8%B8%E9%87%8F%E7%9B%B4%E6%8E%A5%E8%BF%94%E5%9B%9E%0A%0A%20%20%20%20%2F%2F%20%20%E9%98%B2%E6%AD%A2%E5%AF%B9%E8%B1%A1%E4%B8%AD%E7%9A%84%E5%BE%AA%E7%8E%AF%E5%BC%95%E7%94%A8%E7%88%86%E6%A0%88%EF%BC%8C%E6%8A%8A%E6%8B%B7%E8%B4%9D%E8%BF%87%E7%9A%84%E5%AF%B9%E8%B1%A1%E7%9B%B4%E6%8E%A5%E8%BF%94%E8%BF%98%E5%8D%B3%E5%8F%AF%0A%20%20%20%20if%20(hash.has(origin))%20return%20hash.get(origin)%3B%0A%20%20%20%20hash.set(origin%2C%20target)%20%20%2F%2F%20%E5%88%B6%E4%BD%9C%E4%B8%80%E4%B8%AA%E6%98%A0%E5%B0%84%E8%A1%A8%0A%0A%20%20%20%20%2F%2F%20%E6%8B%BF%E5%87%BA%E6%89%80%E6%9C%89%E5%B1%9E%E6%80%A7%EF%BC%8C%E5%8C%85%E6%8B%AC%E5%8F%AF%E6%9E%9A%E4%B8%BE%E7%9A%84%E5%92%8C%E4%B8%8D%E5%8F%AF%E6%9E%9A%E4%B8%BE%E7%9A%84%EF%BC%8C%E4%BD%86%E4%B8%8D%E8%83%BD%E6%8B%BF%E5%88%B0symbol%E7%B1%BB%E5%9E%8B%0A%20%20%20%20var%20props%20%3D%20Object.getOwnPropertyNames(origin)%3B%0A%20%20%20%20props.forEach((prop%2C%20index)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20if%20(origin.hasOwnProperty(prop))%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(typeof%20(origin%5Bprop%5D)%20%3D%3D%3D%20%22object%22)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20(Object.prototype.toString.call(origin%5Bprop%5D)%20%3D%3D%20%22%5Bobject%20Array%5D%22)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%E6%95%B0%E7%BB%84%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20target%5Bprop%5D%20%3D%20%5B%5D%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20deepClone(origin%5Bprop%5D%2C%20target%5Bprop%5D%2C%20hash)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%20else%20if%20(Object.prototype.toString.call(origin%5Bprop%5D)%20%3D%3D%20%22%5Bobject%20Object%5D%22)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%E6%99%AE%E9%80%9A%E5%AF%B9%E8%B1%A1%20%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20target%5Bprop%5D%20%3D%20%7B%7D%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20deepClone(origin%5Bprop%5D%2C%20target%5Bprop%5D%2C%20hash)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%20else%20if%20(origin%5Bprop%5D%20instanceof%20Date)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20%E5%A4%84%E7%90%86%E6%97%A5%E6%9C%9F%E5%AF%B9%E8%B1%A1%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20target%5Bprop%5D%20%3D%20new%20Date(origin%5Bprop%5D)%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%20else%20if%20(origin%5Bprop%5D%20instanceof%20RegExp)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20%E5%A4%84%E7%90%86%E6%AD%A3%E5%88%99%E5%AF%B9%E8%B1%A1%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20target%5Bprop%5D%20%3D%20new%20RegExp(origin%5Bprop%5D)%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2Fnull%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20target%5Bprop%5D%20%3D%20null%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%20else%20if%20(typeof%20(origin%5Bprop%5D)%20%3D%3D%3D%20%22function%22)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20var%20_copyFn%20%3D%20function%20(fn)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20var%20result%20%3D%20new%20Function(%22return%20%22%20%2B%20fn)()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20for%20(var%20i%20in%20fn)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20deepClone%5Bfn%5Bi%5D%2C%20result%5Bi%5D%2C%20hash%5D%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20return%20result%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20target%5Bprop%5D%20%3D%20_copyFn(origin%5Bprop%5D)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%E9%99%A4%E4%BA%86object%E3%80%81function%EF%BC%8C%E5%89%A9%E4%B8%8B%E9%83%BD%E6%98%AF%E7%9B%B4%E6%8E%A5%E8%B5%8B%E5%80%BC%E7%9A%84%E5%8E%9F%E5%A7%8B%E5%80%BC%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20target%5Bprop%5D%20%3D%20origin%5Bprop%5D%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D)%3B%0A%0A%20%20%20%20%2F%2F%20%E5%8D%95%E7%8B%AC%E5%A4%84%E7%90%86symbol%20%20%20%20%20%20%20%20%20%20%20%20%0A%20%20%20%20var%20symKeys%20%3D%20Object.getOwnPropertySymbols(origin)%3B%0A%20%20%20%20if%20(symKeys.length)%20%7B%0A%20%20%20%20%20%20%20%20symKeys.forEach(symKey%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20target%5BsymKey%5D%20%3D%20origin%5BsymKey%5D%3B%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%7D%0A%20%20%20%20return%20target%3B%0A%7D%0A%0A%60%60%60%0A%0A%E6%AF%94%E8%BE%83%E4%B9%8B%E4%B8%8B%E4%BB%A3%E7%A0%81%E9%97%AE%E9%A2%98%0A%0A1.%20Date%EF%BC%8CFunction%E7%AD%89%E4%B9%9F%E8%A6%81%E5%85%8B%E9%9A%86%0A2.%20Symbol%E7%B1%BB%E5%9E%8B%E7%9A%84%E6%B2%A1%E6%9C%89%E5%85%8B%E9%9A%86%0A%0A%E4%BC%98%E5%8C%96%E4%B8%80%E4%B8%8B%0A%0A%60%60%60%0Afunction%20cloneDeep(origin%2C%20hash%20%3D%20new%20WeakMap())%20%7B%0A%20%20%20%20if%20(origin%20%3D%3D%20null)%20return%20origin%3B%0A%20%20%20%20if%20(typeof%20origin%20%3D%3D%3D%20'symbol')%20return%20origin%3B%0A%20%20%20%20if%20(origin%20instanceof%20Date)%20return%20new%20Date(origin)%3B%0A%20%20%20%20if%20(origin%20instanceof%20RegExp)%20return%20new%20RegExp(origin)%3B%20%0A%20%20%20%20if%20(typeof%20origin%20%3D%3D%3D%20'function')%20%7B%0A%20%20%20%20%20%20%20%20if%20(%2F%5Efunction%2F.test(origin.toString())%20%7C%7C%20%2F%5E%5C(%5C)%2F.test(origin.toString()))%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20return%20new%20Function('return%20'%20%2B%20origin.toString())()%0A%20%20%20%20%20%20%20%20%7D%0A%0A%20%20%20%20%20%20%20%20return%20new%20Function('return%20function%20'%20%2B%20origin.toString())()%0A%20%20%20%20%7D%0A%20%20%20%20if%20(origin%20instanceof%20RegExp)%20return%20new%20RegExp(origin)%3B%0A%20%20%20%20if%20(typeof%20origin%20!%3D%3D%20'object')%20return%20origin%3B%0A%0A%20%20%20%20const%20result%20%3D%20Array.isArray(origin)%20%3F%20%5B%5D%20%3A%20%7B%7D%3B%0A%20%20%20%20if%20(hash.has(origin))%20return%20hash.get(origin)%3B%0A%20%20%20%20%0A%20%20%20%20Object.getOwnPropertyNames(origin)%0A%20%20%20%20.concat(Object.getOwnPropertySymbols(origin))%0A%20%20%20%20.forEach((key)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20result%5Bkey%5D%20%3D%20cloneDeep(origin%5Bkey%5D%2C%20hash)%3B%0A%20%20%20%20%7D)%0A%20%20%20%20hash.set(origin%2C%20result)%3B%0A%20%20%20%20return%20result%3B%0A%7D%0A%60%60%60</center></span>
+</div></body></html> 
