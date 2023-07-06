@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "typescript",
+			"tsconfig": "3.ts/测试代码/02_ts在vscode中的自动编译/tsconfig.json",
+			"option": "watch",
+			"problemMatcher": [
+				"$tsc-watch"
+			],
+			"group": "build",
+			"label": "tsc: 监视 - 3.ts/测试代码/02_ts在vscode中的自动编译/tsconfig.json"
+		}
+	]
+}
