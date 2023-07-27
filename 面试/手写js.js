@@ -1363,7 +1363,7 @@
     const viewHeight = document.documentElement.clientHeight;
     const scrollHeight = document.documentElement.scrollTop || document.body.scrollTop;
     for (let i = 0; i < len; i++) {
-      const offsetHeight = imgs[i].offsetTop; // 合计，与上一个节点的距离
+      const offsetHeight = imgs[i].offsetTop; // 这个节点距离offsetParent的高度
       if (offsetHeight < viewHeight + scrollHeight) {
         const src = imgs[i].dataset.src;
         imgs[i].src = src;
